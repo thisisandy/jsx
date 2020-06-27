@@ -287,6 +287,12 @@ const parseDirectives = (t, {
   };
 };
 
+const hasDynamicKey = (t, props) => {
+  if (!t.isObjectExpression(props)) {
+    return false;
+  }
+};
+
 export {
   createIdentifier,
   isDirective,
@@ -301,4 +307,5 @@ export {
   PatchFlagNames,
   parseDirectives,
   isFragment,
+  hasDynamicKey,
 };

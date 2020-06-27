@@ -12,6 +12,7 @@ import {
   transformJSXSpreadChild,
   parseDirectives,
   isFragment,
+  hasDynamicKey,
 } from './utils';
 
 const xlinkRE = /^xlink([A-Z])/;
@@ -98,7 +99,7 @@ const dedupeProperties = (t, properties = []) => {
 };
 
 const buildProps = (t, path, state, hasContainer) => {
-  const tag = getTag(t, path);
+  const tag = getTag(t, path, state);
   const isComponent = checkIsComponent(t, path.get('openingElement'));
   const props = path.get('openingElement').get('attributes');
   const directives = [];
@@ -333,7 +334,7 @@ const getChildren = (t, paths, state) => {
         if (path.isJSXSpreadChild()) {
           return transformJSXSpreadChild(t, path);
         }
-        if (path.isCallExpression()) {
+        if (path.isCallExpression() || path.isSequenceExpression()) {
           return path.node;
         }
         if (path.isJSXElement()) {
@@ -348,6 +349,11 @@ const getChildren = (t, paths, state) => {
     hasContainer,
   };
 };
+
+const withOpenBlock = (t, state, expression, isBlock) => (isBlock ? t.sequenceExpression([
+  t.callExpression(createIdentifier(t, state, 'openBlock'), []),
+  expression,
+]) : expression);
 
 const transformJSXElement = (t, path, state) => {
   const { children, hasContainer } = getChildren(t, path.get('children'), state);
@@ -405,14 +411,16 @@ const transformJSXElement = (t, path, state) => {
     && t.arrayExpression([...dynamicPropNames.keys()].map((name) => t.stringLiteral(name))),
   ].filter(Boolean));
 
+  const isBlock = isComponent ? false : !patchFlag || hasDynamicKey(props);
+
   if (!directives.length) {
-    return createVNode;
+    return withOpenBlock(t, state, createVNode, isBlock);
   }
 
-  return t.callExpression(createIdentifier(t, state, 'withDirectives'), [
+  return withOpenBlock(t, state, t.callExpression(createIdentifier(t, state, 'withDirectives'), [
     createVNode,
     t.arrayExpression(directives),
-  ]);
+  ]), isBlock);
 };
 
 export default (t) => ({
