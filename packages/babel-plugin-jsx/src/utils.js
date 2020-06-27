@@ -96,12 +96,14 @@ const transformJSXMemberExpression = (t, path) => {
  * @param path JSXOpeningElement
  * @returns Identifier | StringLiteral | MemberExpression
  */
-const getTag = (t, path) => {
+const getTag = (t, path, state) => {
   const namePath = path.get('openingElement').get('name');
   if (namePath.isJSXIdentifier()) {
     const { name } = namePath.node;
-    if (path.scope.hasBinding(name) && !htmlTags.includes(name) && !svgTags.includes(name)) {
-      return t.identifier(name);
+    if (!htmlTags.includes(name) && !svgTags.includes(name)) {
+      return path.scope.hasBinding(name)
+        ? t.identifier(name)
+        : t.callExpression(createIdentifier(t, state, 'resolveComponent'), [t.stringLiteral(name)]);
     }
 
     return t.stringLiteral(name);
